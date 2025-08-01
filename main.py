@@ -165,6 +165,8 @@ def run_algo():
 
         if sheet:
             log_to_sheets(sheet, stock, total_return, win_ratio, acc)
+            update_summary(sheet, stock, total_return)
+
 
 if __name__ == "__main__":
     run_algo()
