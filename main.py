@@ -123,6 +123,28 @@ def log_to_sheets(sheet, stock, total_return, win_ratio, acc):
     wr_ws.append_row([stock, round(win_ratio if not np.isnan(win_ratio) else 0,2)])
 
     logging.info(f"Logged {stock} results across all sheets.")
+def update_summary(sheet, stock, total_return):
+    try:
+        worksheet = sheet.worksheet("SummaryPNL")
+    except:
+        worksheet = sheet.add_worksheet(title="SummaryPNL", rows="100", cols="10")
+        worksheet.append_row(["Stock", "TotalReturn%"])
+
+    # Append new row
+    worksheet.append_row([stock, round(total_return, 2)])
+
+    # Get all rows except header
+    values = worksheet.get_all_values()[1:]
+
+    # Calculate total return
+    total = sum([float(row[1]) for row in values if row[1]])
+
+    # Check if TOTAL row already exists
+    rows = worksheet.get_all_values()
+    if rows and rows[-1][0] == "TOTAL":
+        worksheet.update_cell(len(rows), 2, round(total, 2))  # update TOTAL
+    else:
+        worksheet.append_row(["TOTAL", round(total, 2)])  # add TOTAL
 
 
 
