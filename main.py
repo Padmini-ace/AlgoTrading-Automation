@@ -84,19 +84,46 @@ def ml_predict(df):
 
 # --------- LOG TO GOOGLE SHEETS ----------
 def log_to_sheets(sheet, stock, total_return, win_ratio, acc):
-    try:
-        worksheet = sheet.worksheet("TradeLog")
-    except:
-        worksheet = sheet.add_worksheet(title="TradeLog", rows="100", cols="10")
-        worksheet.append_row(["Stock", "TotalReturn%", "WinRatio%", "MLAccuracy%", "Timestamp"])
-    
-    # Handle NaN values before sending to Google Sheets
-    safe_total_return = 0 if pd.isna(total_return) else round(total_return, 2)
-    safe_win_ratio = 0 if pd.isna(win_ratio) else round(win_ratio, 2)
-    safe_acc = 0 if pd.isna(acc) else round(acc, 2)
+    from gspread.exceptions import WorksheetNotFound
+    import numpy as np
 
-    worksheet.append_row([stock, safe_total_return, safe_win_ratio, safe_acc, str(datetime.now())])
-    logging.info(f"Logged {stock} results to Google Sheets.")
+    # --- Trade Log ---
+    try:
+        trade_ws = sheet.worksheet("TradeLog")
+    except WorksheetNotFound:
+        trade_ws = sheet.add_worksheet(title="TradeLog", rows="100", cols="10")
+        trade_ws.append_row(["Stock", "TotalReturn%", "WinRatio%", "MLAccuracy%", "Timestamp"])
+    trade_ws.append_row([stock, round(total_return,2), round(win_ratio if not np.isnan(win_ratio) else 0,2), round(acc,2), str(datetime.now())])
+
+    # --- Summary P&L ---
+    try:
+        pnl_ws = sheet.worksheet("SummaryPNL")
+    except WorksheetNotFound:
+        pnl_ws = sheet.add_worksheet(title="SummaryPNL", rows="100", cols="10")
+        pnl_ws.append_row(["Stock", "TotalReturn%"])
+    pnl_ws.append_row([stock, round(total_return,2)])
+
+    # Calculate total P&L
+    all_pnls = [float(cell) for cell in pnl_ws.col_values(2)[1:] if cell and cell != "TOTAL"]  # skip header & TOTAL
+    total_pnl = round(sum(all_pnls), 2)
+
+    # Update / Add TOTAL row
+    try:
+        cell = pnl_ws.find("TOTAL")
+        pnl_ws.update_cell(cell.row, 2, total_pnl)
+    except:
+        pnl_ws.append_row(["TOTAL", total_pnl])
+
+    # --- Win Ratio summary ---
+    try:
+        wr_ws = sheet.worksheet("WinRatio")
+    except WorksheetNotFound:
+        wr_ws = sheet.add_worksheet(title="WinRatio", rows="100", cols="10")
+        wr_ws.append_row(["Stock", "WinRatio%"])
+    wr_ws.append_row([stock, round(win_ratio if not np.isnan(win_ratio) else 0,2)])
+
+    logging.info(f"Logged {stock} results across all sheets.")
+
 
 
 # --------- MAIN FUNCTION ----------
