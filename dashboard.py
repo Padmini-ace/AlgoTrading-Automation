@@ -1,33 +1,43 @@
-import streamlit as st
-import pandas as pd
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
+import streamlit as st
+import pandas as pd
+from datetime import datetime
 
-# Connect to Google Sheets
-scope = ["https://spreadsheets.google.com/feeds","https://www.googleapis.com/auth/drive"]
+# Google Sheets setup
+scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 creds = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", scope)
 client = gspread.authorize(creds)
-sheet = client.open("AlgoTrading").worksheet("TradeLog")
-data = sheet.get_all_records()
+
+# Open Google Sheet
+SHEET_NAME = "YourSheetName"   # 🔹 Replace with your Google Sheet's name
+worksheet = client.open(SHEET_NAME).worksheet("TradeLog")
+
+# Fetch data
+data = worksheet.get_all_records()
 df = pd.DataFrame(data)
 
-# Streamlit Dashboard
-st.set_page_config(page_title="AlgoTrading Dashboard", layout="wide")
-st.title("📊 AlgoTrading Performance Dashboard")
+# Streamlit dashboard
+st.set_page_config(page_title="Algo Trading Dashboard", layout="wide")
 
-if not df.empty:
-    st.subheader("Latest Results")
-    last = df.iloc[-1]
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Stock", last["Stock"])
-    col2.metric("Return", f"{last['TotalReturn%']}%")
-    col3.metric("Win Ratio", f"{last['WinRatio%']}%")
-    col4.metric("ML Accuracy", f"{last['MLAccuracy%']}%")
+st.title("📊 Algo Trading Dashboard")
+st.subheader("Live Trade Log Results")
 
-    st.subheader("All Trades Log")
+if df.empty:
+    st.warning("No data found in Google Sheet.")
+else:
+    # Show trade log
     st.dataframe(df)
 
-    st.subheader("Performance Chart")
-    st.line_chart(df[["TotalReturn%", "MLAccuracy%"]])
-else:
-    st.warning("No data found in TradeLog yet. Run main.py first!")
+    # Summary stats
+    st.subheader("📈 Performance Summary")
+    avg_return = df["TotalReturn%"].mean()
+    avg_accuracy = df["MLAccuracy%"].mean()
+    st.write(f"✅ Average Return: {avg_return:.2f}%")
+    st.write(f"🎯 Average ML Accuracy: {avg_accuracy:.2f}%")
+
+    # Chart visualization
+    st.subheader("📊 Returns Over Time")
+    df["Timestamp"] = pd.to_datetime(df["Timestamp"], errors="coerce")
+    st.line_chart(df.set_index("Timestamp")[["TotalReturn%"]])
+
